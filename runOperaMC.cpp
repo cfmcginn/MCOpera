@@ -18,7 +18,11 @@ int main(int argc, char*argv[])
     return 1;
   }
 
-  gen.seed(static_cast<unsigned int>(std::time(0)));
+  //  gen.seed(static_cast<unsigned int>(std::time(0)));
+
+  //From Opera Paper
+  const int nEvtsDetected = 15223;
+
 
   TH1F* testHist_p = new TH1F("testHist_h", "testHist_h", 10, -0.05, .95);
 
