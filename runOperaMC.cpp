@@ -25,13 +25,20 @@ int main(int argc, char*argv[])
 
   //  gen.seed(static_cast<unsigned int>(std::time(0)));
 
+  TH1F* delT_p = new TH1F("delT_h", "delT_h", 200, -500, 500);
+
   for(int iter = 0; iter < atoi(argv[1]); iter++){
     std::cout << iter << std::endl;
     genHist(argv[2], Form("simulation%d", iter));
     makeHistInt(argv[2], Form("simulation%d", iter));
 
-    fitHistFull(argv[2], Form("simulation%d", iter));
+    delT_p->Fill(fitHistFull(argv[2], Form("simulation%d", iter)));
   }
+
+  TFile* outFile_p = new TFile(Form("%s.root", argv[2]), "UPDATE");
+  delT_p->Write("", TObject::kOverwrite);
+  outFile_p->Close();
+  delete outFile_p;
 
   return 0;
 }
@@ -47,12 +54,11 @@ void genHist(const std::string fileName, const std::string histName)
   const int res = 100;
   
   TH1::SetDefaultSumw2();
-  TH1F* testHist_p = new TH1F(Form("%s_h", histName.c_str()), Form("%s_h", histName.c_str()), 115, -timeIntExp/2.0, timeIntExp/2.0);
+  TH1F* testHist_p = new TH1F(Form("%s_h", histName.c_str()), Form("%s_h", histName.c_str()), 230, -timeIntExp/2.0, timeIntExp/2.0);
   
   while(testHist_p->Integral() < nEvtsDetected){  
     static boost::random::uniform_01<boost::mt19937> dist(gen);
     float randNum =  dist()*timeIntExp - timeIntExp/2.0;
-    //    float weight = (1/(2*TMath::Sqrt(2)))(TMath::Erf((randNum + timeInt/2.0)/res) - TMath::Erf((randNum - timeInt/2.0)/res))/timeInt;   
     float weight = .5*(TMath::Erf((randNum + timeInt/2.0)/(TMath::Sqrt(2)*res)) - TMath::Erf((randNum - timeInt/2.0)/(TMath::Sqrt(2)*res)))/timeInt;
     testHist_p->Fill(randNum, weight*10000.);  
   }
@@ -88,8 +94,7 @@ void makeHistInt(const std::string fileName, const std::string histName)
 
 float fitHistFull(const std::string fileName, const std::string histName)
 {
-  float deltaT = 0;
-  const float timeInt = 10500;
+  const float timeInt = 11500;
 
   TFile* outFile_p = new TFile(Form("%s.root", fileName.c_str()), "UPDATE");
   TH1F* getHist_p = (TH1F*)outFile_p->Get(Form("%s_h", histName.c_str()));
@@ -104,8 +109,10 @@ float fitHistFull(const std::string fileName, const std::string histName)
   fullFit->SetParameter(1, timeInt/2.0);
   fullFit->SetParameter(2, -timeInt/2.0);
 
-  getHist_p->Fit("fullFit", "L");
+  getHist_p->Fit("fullFit", "RMQ");
+  getHist_p->Write("", TObject::kOverwrite);
+  outFile_p->Close();
+  delete outFile_p;
 
-
-  return deltaT;
+  return (fullFit->GetParameter(1) + fullFit->GetParameter(2))/2.0;
 }
