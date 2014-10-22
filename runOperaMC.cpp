@@ -99,17 +99,17 @@ float fitHistFull(const std::string fileName, const std::string histName)
   TFile* outFile_p = new TFile(Form("%s.root", fileName.c_str()), "UPDATE");
   TH1F* getHist_p = (TH1F*)outFile_p->Get(Form("%s_h", histName.c_str()));
 
-  TF1 *fullFit = new TF1("fullFit", "[0]*(TMath::Erf((x-[2])/(TMath::Sqrt(2)*100)) - TMath::Erf((x-[1])/(TMath::Sqrt(2)*100)))/([1] - [2])", -timeInt/2.0, timeInt/2.0);
+  TF1 *fullFit = new TF1("fullFit", ".5*[0]*(TMath::Erf((x-[2])/(TMath::Sqrt(2)*100)) - TMath::Erf((x-[1])/(TMath::Sqrt(2)*100)))/([1] - [2])", -timeInt/2.0, timeInt/2.0);
 
   fullFit->SetParName(0, "Amp");
   fullFit->SetParName(1, "b");
   fullFit->SetParName(2, "a");
 
-  fullFit->SetParameter(0, getHist_p->GetMaximum());
+  fullFit->SetParameter(0, getHist_p->GetMaximum()*timeInt);
   fullFit->SetParameter(1, timeInt/2.0);
   fullFit->SetParameter(2, -timeInt/2.0);
 
-  getHist_p->Fit("fullFit", "RMQ");
+  getHist_p->Fit("fullFit", "RML");
   getHist_p->Write("", TObject::kOverwrite);
   outFile_p->Close();
   delete outFile_p;
