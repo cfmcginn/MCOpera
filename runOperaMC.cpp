@@ -6,6 +6,7 @@
 #include "TH1F.h"
 #include "TF1.h"
 #include "TMath.h"
+#include "TCanvas.h"
 
 #include "boost/random/mersenne_twister.hpp"
 #include "boost/random/uniform_01.hpp"
@@ -26,8 +27,8 @@ int main(int argc, char*argv[])
 
   //  gen.seed(static_cast<unsigned int>(std::time(0)));
 
-  TH1F* delT_p = new TH1F("delT_h", "delT_h", 200, -500, 500);
-  TH1F* delTMod_p = new TH1F("delTMod_h", "delTMod_h", 200, -500, 500);
+  TH1F* delT_p = new TH1F("delT_h", "delT_h", 100, -100, 100);
+  TH1F* delTMod_p = new TH1F("delTMod_h", "delTMod_h", 100, -100, 100);
 
   for(int iter = 0; iter < atoi(argv[1]); iter++){
     std::cout << iter << std::endl;
@@ -39,8 +40,18 @@ int main(int argc, char*argv[])
   }
 
   TFile* outFile_p = new TFile(Form("%s.root", argv[2]), "UPDATE");
+  delT_p->SetXTitle("#mu_{Fit}");
+  delTMod_p->SetXTitle("#mu_{Fit,mod}");
+  delT_p->SetYTitle("Counts");
+  delTMod_p->SetYTitle("Counts");
   delT_p->Write("", TObject::kOverwrite);
   delTMod_p->Write("", TObject::kOverwrite);
+
+  TCanvas* c1 = new TCanvas("delT", "delT", 1);
+  delT_p->Draw();
+  c1->SaveAs("delT.pdf");
+  delTMod_p->Draw();
+  c1->SaveAs("delTMod.pdf");
   outFile_p->Close();
   delete outFile_p;
 
@@ -116,9 +127,23 @@ float fitHistFull(const std::string fileName, const std::string histName, bool M
   fullFit->SetParameter(2, -(timeInt-1000)/2.0);
 
   if(!Mod) getHist_p->Fit("fullFit", "RMLQ");
-  else getHist_p->Fit("fullFit", "RMLQ", "", -timeInt/2.0, -timeInt/2.0 + 1500);
+  else getHist_p->Fit("fullFit", "RMLQ", "", -timeInt/2.0, -timeInt/2.0 + 550);
 
-  getHist_p->Write("", TObject::kOverwrite);
+  if(!Mod) getHist_p->Write("", TObject::kOverwrite);
+  else getHist_p->Write(Form("%sMOD_h", histName.c_str()), TObject::kOverwrite);
+
+  TCanvas* c1 = new TCanvas("thisCanv", "thisCanv", 1);
+  getHist_p->Draw();
+
+  if(!Mod){
+    getHist_p->Fit("fullFit", "RMLQ");
+    c1->SaveAs(Form("%s.pdf", histName.c_str()));
+  }
+  else{
+    getHist_p->Fit("fullFit", "RMLQ", "", -timeInt/2.0, -timeInt/2.0 + 550);
+    c1->SaveAs(Form("%s_MOD.pdf", histName.c_str()));
+  }
+  delete c1;
   outFile_p->Close();
   delete outFile_p;
 
