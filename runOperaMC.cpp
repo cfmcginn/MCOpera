@@ -14,7 +14,8 @@ boost::random::mt19937 gen;
 
 void genHist(const std::string fileName, const std::string histName);
 void makeHistInt(const std::string fileName, const std::string histName);
-float fitHistFull(const std::string fileName, const std::string histName);
+float fitHistFull(const std::string fileName, const std::string histName, bool Mod);
+void runPoisson();
 
 int main(int argc, char*argv[])
 {
@@ -26,19 +27,24 @@ int main(int argc, char*argv[])
   //  gen.seed(static_cast<unsigned int>(std::time(0)));
 
   TH1F* delT_p = new TH1F("delT_h", "delT_h", 200, -500, 500);
+  TH1F* delTMod_p = new TH1F("delTMod_h", "delTMod_h", 200, -500, 500);
 
   for(int iter = 0; iter < atoi(argv[1]); iter++){
     std::cout << iter << std::endl;
     genHist(argv[2], Form("simulation%d", iter));
     makeHistInt(argv[2], Form("simulation%d", iter));
 
-    delT_p->Fill(fitHistFull(argv[2], Form("simulation%d", iter)));
+    delT_p->Fill(fitHistFull(argv[2], Form("simulation%d", iter), false));
+    delTMod_p->Fill(fitHistFull(argv[2], Form("simulation%d", iter), true));
   }
 
   TFile* outFile_p = new TFile(Form("%s.root", argv[2]), "UPDATE");
   delT_p->Write("", TObject::kOverwrite);
+  delTMod_p->Write("", TObject::kOverwrite);
   outFile_p->Close();
   delete outFile_p;
+
+  //  runPoisson();
 
   return 0;
 }
@@ -92,7 +98,7 @@ void makeHistInt(const std::string fileName, const std::string histName)
 }
 
 
-float fitHistFull(const std::string fileName, const std::string histName)
+float fitHistFull(const std::string fileName, const std::string histName, bool Mod)
 {
   const float timeInt = 11500;
 
@@ -106,13 +112,38 @@ float fitHistFull(const std::string fileName, const std::string histName)
   fullFit->SetParName(2, "a");
 
   fullFit->SetParameter(0, getHist_p->GetMaximum()*timeInt);
-  fullFit->SetParameter(1, timeInt/2.0);
-  fullFit->SetParameter(2, -timeInt/2.0);
+  fullFit->SetParameter(1, (timeInt-1000)/2.0);
+  fullFit->SetParameter(2, -(timeInt-1000)/2.0);
 
-  getHist_p->Fit("fullFit", "RML");
+  if(!Mod) getHist_p->Fit("fullFit", "RMLQ");
+  else getHist_p->Fit("fullFit", "RMLQ", "", -timeInt/2.0, -timeInt/2.0 + 1500);
+
   getHist_p->Write("", TObject::kOverwrite);
   outFile_p->Close();
   delete outFile_p;
 
-  return (fullFit->GetParameter(1) + fullFit->GetParameter(2))/2.0;
+  if(!Mod) return (fullFit->GetParameter(1) + fullFit->GetParameter(2))/2.0;
+  else return fullFit->GetParameter(2) + (timeInt-1000)/2.0;
+}
+
+
+void runPoisson()
+{
+  int means[7] = {1, 2, 5, 10, 20, 50, 100};
+
+  for(int iter = 0; iter < 7; iter++){
+    double integral = 0;
+    int count = 0;
+
+    std::cout << "For mean: " << means[iter] << std::endl;
+    while(integral < 1-3*TMath::Power(10, -7)){
+      integral += TMath::Power(means[iter], count)*TMath::Power(TMath::E(), -means[iter])/(TMath::Factorial(count));
+      if(integral < .05) std::cout << "   95% count: " << count << ", "<< integral << std::endl;
+      if(integral > .9973) std::cout << "   3sig: " << count << ", " << integral << std::endl;
+      count++;
+    }
+    std::cout << "   5sig: " << count << ", " << integral << std::endl;
+  }
+
+  return;
 }
